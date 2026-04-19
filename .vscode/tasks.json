@@ -1,0 +1,22 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+				"type": "shell",
+				"command": "dub",
+				"args": [
+					"run",
+					"--root=editor",
+					"--compiler=dmd",
+					"--arch=x86_64",
+					"--build=debug"
+				],
+				"problemMatcher": [
+					"$dmd"
+				],
+			"group": "build",
+			"label": "dub: Run Dua test",
+			"detail": "dub run --compiler=dmd.EXE -b=debug -c=application"
+		}
+	]
+}

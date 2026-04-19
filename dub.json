@@ -1,0 +1,26 @@
+{
+	"name": "dua",
+	"description": "A lightweight embeddable scripting language runtime implemented in D.",
+	"homepage": "https://github.com/Zero-error-no-warning/Dua",
+	"authors": [
+		"Zenw"
+	],
+	"copyright": "Copyright (c) 2026 Zenw",
+	"license": "MIT",
+	"sourcePaths": [
+		"source"
+	],
+	"excludedSourceFiles": [
+		"source/app.d"
+	],
+	"configurations": [
+		{
+			"name":"library",
+			"targetType":"library"
+		},
+		{
+			"name":"unittest",
+			"targetType":"library"
+		}
+	]
+}

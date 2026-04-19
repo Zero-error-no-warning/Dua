@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+/dua
+dua.so
+dua.dylib
+dua.dll
+dua.a
+dua.lib
+dua-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
