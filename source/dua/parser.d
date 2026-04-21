@@ -1,7 +1,7 @@
 module dua.parser;
 
 import dua.ast;
-import dua.lexer : Token, TokenKind;
+import dua.lexer : Token, TokenKind, lex;
 import dua.value : Value;
 import std.algorithm.searching : canFind;
 import std.array : appender;
@@ -607,6 +607,14 @@ private struct Parser
 
     Expression parsePrimary()
     {
+        if (check(TokenKind.identifier)
+            && peek().lexeme == "i"
+            && peekAt(1).kind == TokenKind.string_)
+        {
+            auto prefixToken = advance();
+            auto stringToken = consume(TokenKind.string_, "Expected string literal after interpolation prefix");
+            return parseInterpolatedStringLiteral(prefixToken, stringToken);
+        }
         if (match(TokenKind.number))
         {
             auto node = locatedExpression(Expression.Kind.literal, previous());
@@ -712,6 +720,158 @@ private struct Parser
         auto token = peek();
         enforce(false, format("Unexpected token %s at %s:%s", token.kind, token.line, token.column));
         assert(0);
+    }
+
+    Expression parseInterpolatedStringLiteral(Token prefixToken, Token stringToken)
+    {
+        auto parts = appender!(Expression[])();
+        auto literalBuffer = appender!(char[])();
+
+        size_t cursor = 0;
+        while (cursor < stringToken.lexeme.length)
+        {
+            auto current = stringToken.lexeme[cursor];
+            if (current == '$')
+            {
+                if (peekChar(stringToken.lexeme, cursor + 1) == '$')
+                {
+                    literalBuffer.put('$');
+                    cursor += 2;
+                    continue;
+                }
+                if (peekChar(stringToken.lexeme, cursor + 1) != '(')
+                {
+                    literalBuffer.put('$');
+                    ++cursor;
+                    continue;
+                }
+
+                flushLiteralPart(parts, literalBuffer, prefixToken);
+
+                auto end = findInterpolationEnd(stringToken.lexeme, cursor + 2, prefixToken);
+                auto embedded = stringToken.lexeme[cursor + 2 .. end];
+                auto embeddedExpressions = parseInterpolationExpressionSequence(embedded, prefixToken);
+                foreach (expression; embeddedExpressions)
+                {
+                    parts.put(expression);
+                }
+                cursor = end + 1;
+                continue;
+            }
+
+            literalBuffer.put(current);
+            ++cursor;
+        }
+
+        flushLiteralPart(parts, literalBuffer, prefixToken);
+        if (parts.data.length == 0)
+        {
+            return makeStringLiteralExpression(prefixToken, "");
+        }
+
+        auto expression = parts.data[0];
+        foreach (part; parts.data[1 .. $])
+        {
+            auto concat = locatedExpression(Expression.Kind.binary, prefixToken);
+            concat.operatorSymbol = "~";
+            concat.left = expression;
+            concat.right = part;
+            expression = concat;
+        }
+        return expression;
+    }
+
+    void flushLiteralPart(ref typeof(appender!(Expression[])()) parts,
+        ref typeof(appender!(char[])()) literalBuffer,
+        Token token)
+    {
+        if (literalBuffer.data.length == 0)
+        {
+            return;
+        }
+        parts.put(makeStringLiteralExpression(token, literalBuffer.data.idup));
+        literalBuffer.clear();
+    }
+
+    Expression makeStringLiteralExpression(Token token, string text)
+    {
+        auto literal = locatedExpression(Expression.Kind.literal, token);
+        literal.literalValue = Value.from(text);
+        return literal;
+    }
+
+    Expression[] parseInterpolationExpressionSequence(string source, Token contextToken)
+    {
+        auto embeddedTokens = lex(source);
+        auto embeddedParser = Parser(embeddedTokens, 0);
+        auto expressions = embeddedParser.parseExpressionList();
+        enforce(embeddedParser.check(TokenKind.eof),
+            format("Unexpected token in interpolation expression at %s:%s", contextToken.line, contextToken.column));
+        return expressions;
+    }
+
+    size_t findInterpolationEnd(string source, size_t start, Token token)
+    {
+        size_t depth = 1;
+        size_t cursor = start;
+        bool inString;
+        char quote;
+        bool escaped;
+
+        while (cursor < source.length)
+        {
+            auto current = source[cursor];
+            if (inString)
+            {
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if (current == '\\')
+                {
+                    escaped = true;
+                }
+                else if (current == quote)
+                {
+                    inString = false;
+                }
+                ++cursor;
+                continue;
+            }
+
+            if (current == '"' || current == '\'')
+            {
+                inString = true;
+                quote = current;
+                ++cursor;
+                continue;
+            }
+            if (current == '(')
+            {
+                ++depth;
+                ++cursor;
+                continue;
+            }
+            if (current == ')')
+            {
+                --depth;
+                if (depth == 0)
+                {
+                    return cursor;
+                }
+                ++cursor;
+                continue;
+            }
+            ++cursor;
+        }
+
+        enforce(false, format("Unterminated interpolation sequence at %s:%s", token.line, token.column));
+        assert(0);
+    }
+
+    char peekChar(string source, size_t index) const
+    {
+        return index < source.length ? source[index] : '\0';
     }
 
     Expression parseArrayLiteral(Token startToken)

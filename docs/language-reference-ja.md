@@ -83,6 +83,7 @@ let first = arr[0];
 let a = 1 + 2 * 3;
 let ok = (a > 3) && (a < 10);
 let s = "du" ~ "a";
+let msg = i"HP:$(a), ok=$(ok)";
 ```
 
 - 算術: `+ - * / %`
@@ -90,6 +91,20 @@ let s = "du" ~ "a";
 - 論理: `&& || !`
 - 連結: `~`
 - ビット: `& | ^ << >>`
+
+### 5.1 文字列補間（Interpolation Expression Sequence）
+
+`i"..."` 形式で、`$(式)` を文字列の中に埋め込めます。
+
+```D
+let name = "Dua";
+let lv = 7;
+let text = i"Hello $(name)! Lv.$(lv)";
+```
+
+- `$(expr)`: 単一式の補間
+- `$(expr1, expr2, ...)`: 式列を左から順に評価して連結
+- `$$`: リテラルの `$` を出力
 
 ## 6. エラーハンドリング
 

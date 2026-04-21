@@ -2994,3 +2994,24 @@ unittest
     });
     assert(result.toInt() == 3);
 }
+
+unittest
+{
+    auto engine = new ScriptEngine();
+    auto result = engine.run(q{
+        let name = "Dua";
+        let level = 7;
+        return i"Hello, $(name)! Lv.$(level)";
+    });
+    assert(result.toHostString() == "Hello, Dua! Lv.7");
+}
+
+unittest
+{
+    auto engine = new ScriptEngine();
+    auto result = engine.run(q{
+        let table = { nested = { value = 3 } };
+        return i"$$score=$(1 + 2, table.nested.value)";
+    });
+    assert(result.toHostString() == "$score=33");
+}
